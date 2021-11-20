@@ -5,9 +5,18 @@ import asyncio
 
 solver = MonteCarloSolver()
 
-solver.play(0, -1)
-solver.play(0, -1)
-solver.play(0, -1)
+solver.play(1, -1)
+solver.play(1, -1)
+
+solver.play(2, 1)
+solver.play(2, 1)
+solver.play(2, -1)
+
+solver.play(3, 1)
+solver.play(3, -1)
+solver.play(3, 1)
+
+solver.play(4, -1)
 
 while (
     not solver.four_in_a_row(-1)
@@ -16,7 +25,7 @@ while (
 ):
     print(f"Turn for {solver.turn}")
     if solver.turn == -1:
-        print(solver.board)
+        solver.print_board()
         col = int(input())
         if col not in solver.valid_moves():
             continue
@@ -27,7 +36,7 @@ while (
     solver.pass_turn()
 
 result = solver.state_eval()
-print(solver.board)
+solver.print_board()
 if result == -1:
     print(f"Player won!!!")
 elif result == 1:

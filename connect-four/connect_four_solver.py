@@ -1,10 +1,9 @@
 from typing import Dict, List, Tuple
 import numpy as np
 from collections import Counter, defaultdict, deque
-from tqdm import tqdm
 import random
-from threading import Thread
 import asyncio
+from colorama import Fore
 
 
 class BaseSolver:
@@ -73,6 +72,22 @@ class BaseSolver:
         elif self.four_in_a_row(1):
             return 1
         return 0
+
+    def print_board(self):
+        to_print = ""
+        count = 0
+        for row in self.board.tolist():
+            to_print += f"{Fore.RESET}{count}: "
+            for el in row:
+                if el == 1:
+                    to_print += f"{Fore.YELLOW}B "
+                elif el == -1:
+                    to_print += f"{Fore.RED}P "
+                else:
+                    to_print += f"{Fore.RESET}- "
+            to_print += f"\n"
+            count += 1
+        print(to_print + Fore.RESET)
 
 
 class MinMaxSolver(BaseSolver):
@@ -193,12 +208,12 @@ class MonteCarloSolver(BaseSolver):
             self.take_back(column)
 
         async_res = await asyncio.gather(*tasks)
-        taboo = set() 
+        taboo = set()
         for res in async_res:
             if res["value"] == -1:
                 if res["bot"] == res["player"]:
                     taboo.add(res["bot"])
-                else:
+                elif res["bot"] not in taboo:
                     return -1, res["player"]
             results[res["bot"]].append(res["value"])
 
