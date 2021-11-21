@@ -5,6 +5,7 @@ from collections import Counter, defaultdict, deque
 import random
 import asyncio
 from colorama import Fore
+from multiprocessing import Pool
 
 
 class BaseSolver(ABC):
@@ -188,14 +189,20 @@ class MonteCarloSolver(BaseSolver):
         new_solver.play(adv_column, player)
         return {"bot": column, "player": adv_column, "value": new_solver.state_eval()}
 
-    async def solve(self, player: int) -> Tuple[float, int]:
+    def thread_func(self, board: np.ndarray, column: int, adv_column: int, player: int):
+        new_solver = MonteCarloSolver()
+        new_solver.board = board
+        new_solver.play(adv_column, player)
+        return {"bot": column, "player": adv_column, "value": new_solver.state_eval()}
+
+    def solve(self, player: int) -> Tuple[float, int]:
         possibilities = self.valid_moves()
         results = defaultdict(lambda: [])
-        tasks = []
+        pool = Pool()
+        args = []
         for column in possibilities:
             self.play(column, player)
-            # We won
-            if self.four_in_a_row(1):
+            if self.four_in_a_row(1):  # We won
                 self.take_back(column)
                 return 1, column
             for adv_column in self.valid_moves():
@@ -204,30 +211,28 @@ class MonteCarloSolver(BaseSolver):
                 results[column].append(self.state_eval())
                 self.take_back(adv_column)
                 """
-                tasks.append(
-                    asyncio.create_task(
-                        self.async_thread_func(
-                            self.board.copy(), column, adv_column, -player
-                        )
-                    )
-                )
+                args.append((self.board.copy(), column, adv_column, -player))
             self.take_back(column)
 
-        async_res = await asyncio.gather(*tasks)
+        async_res = pool.starmap(self.thread_func, args)
 
         taboo = set()
         for res in async_res:
+            # Certain defeat
             if res["value"] == -1:
                 if res["bot"] == res["player"]:
                     taboo.add(res["bot"])
                 elif res["bot"] not in taboo:
                     return -1, res["player"]
+            # Other results
             results[res["bot"]].append(res["value"])
 
         for k in taboo:
             results.pop(k, None)
         for k in results:
             results[k] = np.mean(results[k])
+        # Search for the highest "probability" of winning
         col = max(results, key=lambda k: results[k])
+        pool.close()
 
         return results[col], col
