@@ -181,15 +181,9 @@ class MonteCarloSolver(BaseSolver):
             return 1
         return self.montecarlo_value(1, 10)
 
-    async def async_thread_func(
+    def parallel_eval(
         self, board: np.ndarray, column: int, adv_column: int, player: int
     ):
-        new_solver = MonteCarloSolver()
-        new_solver.board = board
-        new_solver.play(adv_column, player)
-        return {"bot": column, "player": adv_column, "value": new_solver.state_eval()}
-
-    def thread_func(self, board: np.ndarray, column: int, adv_column: int, player: int):
         new_solver = MonteCarloSolver()
         new_solver.board = board
         new_solver.play(adv_column, player)
@@ -214,7 +208,7 @@ class MonteCarloSolver(BaseSolver):
                 args.append((self.board.copy(), column, adv_column, -player))
             self.take_back(column)
 
-        async_res = pool.starmap(self.thread_func, args)
+        async_res = pool.starmap(self.parallel_eval, args)
 
         taboo = set()
         for res in async_res:
