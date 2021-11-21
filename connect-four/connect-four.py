@@ -5,19 +5,6 @@ import asyncio
 
 solver = MonteCarloSolver()
 
-solver.play(1, -1)
-solver.play(1, -1)
-
-solver.play(2, 1)
-solver.play(2, 1)
-solver.play(2, -1)
-
-solver.play(3, 1)
-solver.play(3, -1)
-solver.play(3, 1)
-
-solver.play(4, -1)
-
 while (
     not solver.four_in_a_row(-1)
     and not solver.four_in_a_row(1)
@@ -30,8 +17,10 @@ while (
         if col not in solver.valid_moves():
             continue
     else:
-        value, col = asyncio.run(solver.solve(1))
-        # value, col = solver.solve(1)
+        if isinstance(solver, MonteCarloSolver):
+            value, col = asyncio.run(solver.solve(1))
+        else:
+            value, col = solver.solve(1)
     solver.play(col, solver.turn)
     solver.pass_turn()
 

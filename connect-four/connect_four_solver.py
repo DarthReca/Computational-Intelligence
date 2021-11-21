@@ -1,4 +1,5 @@
-from typing import Dict, List, Tuple
+from abc import ABC, abstractmethod
+from typing import Dict, List, Tuple, Union
 import numpy as np
 from collections import Counter, defaultdict, deque
 import random
@@ -6,12 +7,18 @@ import asyncio
 from colorama import Fore
 
 
-class BaseSolver:
-    # Board can be initiatilized with `board = np.zeros((NUM_COLUMNS, COLUMN_HEIGHT), dtype=np.byte)`
-    # Notez Bien: Connect 4 "columns" are actually NumPy "rows"
+class BaseSolver(ABC):
     def __init__(self, columns: int = 7, column_height: int = 6) -> None:
         self.board = np.zeros((columns, column_height), dtype=np.int8)
         self.turn = random.choice([1, -1])
+
+    @abstractmethod
+    def state_eval(self):
+        pass
+
+    @abstractmethod
+    def solve(self):
+        pass
 
     def pass_turn(self):
         self.turn = -self.turn
@@ -66,13 +73,6 @@ class BaseSolver:
             )
         )
 
-    def state_eval(self):
-        if self.four_in_a_row(-1):
-            return -1
-        elif self.four_in_a_row(1):
-            return 1
-        return 0
-
     def print_board(self):
         to_print = ""
         count = 0
@@ -97,15 +97,22 @@ class MinMaxSolver(BaseSolver):
         super().__init__(columns=columns, column_height=column_height)
         self.max_depth = max_depth
 
-    def _corrected_max(self, current: Tuple[float, int], new: Tuple[float, int]):
+    def _corrected_max(self, current: Tuple[int, int], new: Tuple[int, int]):
         # Better to control central row
         if current[0] >= 0 and current[0] - new[0] == 0:
             return min(current, new, key=lambda k: np.abs(k[1] - 3))
         return max(current, new, key=lambda k: k[0])
 
+    def state_eval(self):
+        if self.four_in_a_row(-1):
+            return -1
+        elif self.four_in_a_row(1):
+            return 1
+        return 0
+
     def solve(
         self, player: int, depth: int = 0, alpha: float = np.NINF, beta: float = np.inf
-    ):
+    ) -> Union[Tuple[int, int], Tuple[int, None]]:
         won = self.state_eval()
         possibilities = self.valid_moves()
 
@@ -114,14 +121,13 @@ class MinMaxSolver(BaseSolver):
         elif not possibilities or depth == self.max_depth:
             return 0, None
 
-        depth += 1
         if player == 1:
             value = (np.NINF, -1)
             for column in possibilities:
                 if value[0] == 1:
                     break
                 self.play(column, player)
-                result = self.solve(-1, depth)[0]
+                result = self.solve(-1, depth + 1)[0]
                 value = self._corrected_max(value, (result, column))
                 alpha = max(value[0], alpha)
                 self.take_back(column)
@@ -134,7 +140,7 @@ class MinMaxSolver(BaseSolver):
                 if value[0] == -1:
                     break
                 self.play(column, player)
-                result = self.solve(1, depth)[0]
+                result = self.solve(1, depth + 1)[0]
                 value = min(value, (result, column), key=lambda v: v[0])
                 beta = min(beta, value[0])
                 self.take_back(column)
@@ -182,7 +188,7 @@ class MonteCarloSolver(BaseSolver):
         new_solver.play(adv_column, player)
         return {"bot": column, "player": adv_column, "value": new_solver.state_eval()}
 
-    async def solve(self, player: int):
+    async def solve(self, player: int) -> Tuple[float, int]:
         possibilities = self.valid_moves()
         results = defaultdict(lambda: [])
         tasks = []
@@ -208,6 +214,7 @@ class MonteCarloSolver(BaseSolver):
             self.take_back(column)
 
         async_res = await asyncio.gather(*tasks)
+
         taboo = set()
         for res in async_res:
             if res["value"] == -1:
