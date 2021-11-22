@@ -19,10 +19,7 @@ if __name__ == "__main__":
             if col not in solver.valid_moves():
                 continue
         else:
-            if not isinstance(solver, MonteCarloSolver):
-                value, col = asyncio.run(solver.solve(1))
-            else:
-                value, col = solver.solve(1)
+            value, col = solver.solve(1)
         solver.play(col, solver.turn)
         solver.pass_turn()
 

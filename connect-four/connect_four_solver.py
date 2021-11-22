@@ -7,6 +7,8 @@ import asyncio
 from colorama import Fore
 from multiprocessing import Pool
 
+from numpy.core.fromnumeric import argmax
+
 
 class BaseSolver(ABC):
     def __init__(self, columns: int = 7, column_height: int = 6) -> None:
@@ -179,54 +181,34 @@ class MonteCarloSolver(BaseSolver):
             return -1
         elif self.four_in_a_row(1):
             return 1
-        return self.montecarlo_value(1, 10)
+        return self.montecarlo_value(1, 30)
 
-    def parallel_eval(
-        self, board: np.ndarray, column: int, adv_column: int, player: int
-    ):
+    def parallel_eval(self, board: np.ndarray, column: int, player: int):
         new_solver = MonteCarloSolver()
         new_solver.board = board
-        new_solver.play(adv_column, player)
-        return {"bot": column, "player": adv_column, "value": new_solver.state_eval()}
+        value = (np.inf, -1)
+        for adv_column in new_solver.valid_moves():
+            new_solver.play(adv_column, player)
+            value = min(
+                value, (new_solver.state_eval(), adv_column), key=lambda x: x[0]
+            )
+            new_solver.take_back(adv_column)
+        return value[0], column
 
     def solve(self, player: int) -> Tuple[float, int]:
-        possibilities = self.valid_moves()
-        results = defaultdict(lambda: [])
-        pool = Pool()
         args = []
-        for column in possibilities:
+        for column in self.valid_moves():
             self.play(column, player)
             if self.four_in_a_row(1):  # We won
                 self.take_back(column)
                 return 1, column
-            for adv_column in self.valid_moves():
-                """Single Thread version
-                self.play(adv_column, -player)
-                results[column].append(self.state_eval())
-                self.take_back(adv_column)
-                """
-                args.append((self.board.copy(), column, adv_column, -player))
+            args.append((self.board.copy(), column, -player))
             self.take_back(column)
 
-        async_res = pool.starmap(self.parallel_eval, args)
+        with Pool() as pool:
+            results = np.array(pool.starmap(self.parallel_eval, args))
 
-        taboo = set()
-        for res in async_res:
-            # Certain defeat
-            if res["value"] == -1:
-                if res["bot"] == res["player"]:
-                    taboo.add(res["bot"])
-                elif res["bot"] not in taboo:
-                    return -1, res["player"]
-            # Other results
-            results[res["bot"]].append(res["value"])
-
-        for k in taboo:
-            results.pop(k, None)
-        for k in results:
-            results[k] = np.mean(results[k])
         # Search for the highest "probability" of winning
-        col = max(results, key=lambda k: results[k])
-        pool.close()
+        row = argmax(results[:, 0])
 
-        return results[col], col
+        return results[row][0], int(results[row][1])
