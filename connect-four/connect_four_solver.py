@@ -1,12 +1,11 @@
-from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Union
-import numpy as np
-from collections import Counter, defaultdict, deque
 import random
-import asyncio
-from colorama import Fore
+from abc import ABC, abstractmethod
+from collections import Counter, deque
 from multiprocessing import Pool
+from typing import Tuple, Union
 
+import numpy as np
+from colorama import Fore
 from numpy.core.fromnumeric import argmax
 
 

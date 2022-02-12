@@ -1,7 +1,4 @@
-import numpy as np
-import random
 from connect_four_solver import MinMaxSolver, MonteCarloSolver
-import asyncio
 
 if __name__ == "__main__":
 
